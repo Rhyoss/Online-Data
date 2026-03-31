@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Receita</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f12;
+    --surface: #161920;
+    --surface2: #1e2229;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0ef;
+    --muted: #8a8f99;
+    --accent-blue: #4a8fe8;
+    --accent-blue-dim: rgba(74,143,232,0.12);
+    --accent-amber: #e8a23a;
+    --accent-amber-dim: rgba(232,162,58,0.10);
+    --accent-green: #3dbf8a;
+    --accent-green-dim: rgba(61,191,138,0.10);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
+
+  body {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: 64px 1fr;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--bg);
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent-blue); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-green);
+    display: inline-block;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  aside {
+    padding: 28px 24px;
+    border-right: 0.5px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    background: var(--surface);
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .slider-row {
+    margin-bottom: 18px;
+  }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .slider-name { font-size: 13px; color: var(--text); }
+
+  .slider-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-blue);
+    background: var(--accent-blue-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border2);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 2px var(--accent-blue);
+    cursor: pointer;
+  }
+
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    border: 2px solid var(--surface);
+    cursor: pointer;
+  }
+
+  .divider { height: 0.5px; background: var(--border); }
+
+  main {
+    display: flex;
+    flex-direction: column;
+    padding: 28px 32px;
+    overflow-y: auto;
+    gap: 20px;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .metric-card.blue::before { background: var(--accent-blue); }
+  .metric-card.amber::before { background: var(--accent-amber); }
+  .metric-card.green::before { background: var(--accent-green); }
+  .metric-card.neutral::before { background: var(--border2); }
+
+  .metric-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .metric-value { font-size: 22px; font-weight: 500; color: var(--text); line-height: 1; }
+  .metric-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .metric-value.blue { color: var(--accent-blue); }
+  .metric-value.green { color: var(--accent-green); }
+  .metric-value.amber { color: var(--accent-amber); }
+
+  .chart-panel {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    flex: 1;
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .chart-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 17px;
+    color: var(--text);
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  .crossover-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-green-dim);
+    border: 0.5px solid rgba(61,191,138,0.25);
+    color: var(--accent-green);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .chart-canvas-wrap { position: relative; width: 100%; height: 240px; }
+
+  .tab-row { display: flex; gap: 2px; margin-bottom: 16px; }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    padding: 6px 14px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); background: var(--surface2); }
+  .tab-btn.active { color: var(--text); background: var(--surface2); font-weight: 500; }
+
+  .insight-bar {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: var(--accent-blue-dim);
+    border: 0.5px solid rgba(74,143,232,0.2);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #7ab0f0;
+    line-height: 1.5;
+  }
+
+  .insight-icon { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+
+  .reset-btn {
+    width: 100%;
+    padding: 10px;
+    background: none;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: auto;
+  }
+  .reset-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Simulador de <span>Receita</span></div>
+  <div class="header-right">
+    <span><span class="live-dot"></span>Atualização em tempo real</span>
+    <span id="timestamp">—</span>
+  </div>
+</header>
+
+<aside>
+  <div>
+    <p class="section-label">Assinatura mensal</p>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-name">Membros iniciais</span>
+        <span class="slider-val" id="val-membros-init">120</span>
+      </div>
+      <input type="range" id="s-membros-init" min="20" max="500" value="120" step="5">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-name">Preço mensal (R$)</span>
+        <span class="slider-val" id="val-price">R$ 299</span>
+      </div>
+      <input type="range" id="s-price" min="49" max="997" value="299" step="10">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-name">Novos membros/mês (M2–M6)</span>
+        <span class="slider-val" id="val-g1">45/mês</span>
+      </div>
+      <input type="range" id="s-g1" min="0" max="200" value="45" step="5">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-name">Novos membros/mês (M7–M12)</span>
+        <span class="slider-val" id="val-g2">30/mês</span>
+      </div>
+      <input type="range" id="s-g2" min="0" max="150" value="30" step="5">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-name">Novos membros/mês (M13–M24)</span>
+        <span class="slider-val" id="val-g3">25/mês</span>
+      </div>
+      <input type="range" id="s-g3" min="0" max="100" value="25" step="5">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-name">Churn mensal (%)</span>
+        <span class="slider-val" id="val-churn">4%</span>
+      </div>
+      <input type="range" id="s-churn" min="0" max="20" value="4" step="0.5">
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div>
+    <p class="section-label">Curso avulso</p>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-name">Vendas do curso</span>
+        <span class="slider-val" id="val-cv">350 und.</span>
+      </div>
+      <input type="range" id="s-cv" min="50" max="2000" value="350" step="50">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-name">Preço do curso (R$)</span>
+        <span class="slider-val" id="val-cp">R$ 2.490</span>
+      </div>
+      <input type="range" id="s-cp" min="197" max="9970" value="2490" step="100">
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <button class="reset-btn" onclick="resetSliders()">↺ Restaurar valores originais</button>
+</aside>
+
+<main>
+  <div class="metrics-grid">
+    <div class="metric-card blue">
+      <p class="metric-label">Receita assinatura 24m</p>
+      <p class="metric-value blue" id="m-sub24">—</p>
+      <p class="metric-sub">Acumulado recorrente</p>
+    </div>
+    <div class="metric-card amber">
+      <p class="metric-label">Receita curso avulso</p>
+      <p class="metric-value amber" id="m-curso">—</p>
+      <p class="metric-sub">Evento único</p>
+    </div>
+    <div class="metric-card green">
+      <p class="metric-label">Vantagem assinatura</p>
+      <p class="metric-value green" id="m-vantagem">—</p>
+      <p class="metric-sub" id="m-mult">vs. curso avulso</p>
+    </div>
+    <div class="metric-card neutral">
+      <p class="metric-label">MRR no mês 24</p>
+      <p class="metric-value" id="m-mrr24">—</p>
+      <p class="metric-sub" id="m-membros24">Receita passiva mensal</p>
+    </div>
+  </div>
+
+  <div class="insight-bar">
+    <span class="insight-icon">&#9654;</span>
+    <span id="insight-text">A assinatura recorrente supera o curso avulso no mês <strong id="ins-cross">—</strong> e não para de crescer. Enquanto o curso exige uma nova campanha a cada ciclo, a assinatura transforma cada novo membro em receita permanente.</span>
+  </div>
+
+  <div class="chart-panel">
+    <div class="chart-header">
+      <div class="chart-title">Receita acumulada — 24 meses</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="crossover-chip" id="cross-chip">Cruzamento: M—</span>
+        <div class="tab-row" style="margin:0;">
+          <button class="tab-btn active" onclick="switchMode('acum',this)">Acumulado</button>
+          <button class="tab-btn" onclick="switchMode('mrr',this)">MRR mensal</button>
+        </div>
+      </div>
+    </div>
+    <div class="legend" style="margin-bottom:16px;">
+      <div class="legend-item"><div class="legend-dot" style="background:#4a8fe8;"></div>Assinatura recorrente</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e8a23a;border-style:dashed;background:none;border:1.5px dashed #e8a23a;width:14px;height:0;border-radius:0;"></div>Curso avulso (referência)</div>
+    </div>
+    <div class="chart-canvas-wrap">
+      <canvas id="chart-main"></canvas>
+    </div>
+  </div>
+</main>
+
+<script>
+const DEFAULTS = { mi:120, p:299, g1:45, g2:30, g3:25, ch:4, cv:350, cp:2490 };
+let chartMode = 'acum';
+let chartInst = null;
+
+const $ = id => document.getElementById(id);
+const fmtK = v => v>=1e6?'R$ '+(v/1e6).toFixed(1).replace('.',',')+'M':'R$ '+Math.round(v).toLocaleString('pt-BR');
+const fmtN = v => Math.round(v).toLocaleString('pt-BR');
+
+function getSliders() {
+  return {
+    mi: +$('s-membros-init').value,
+    p:  +$('s-price').value,
+    g1: +$('s-g1').value,
+    g2: +$('s-g2').value,
+    g3: +$('s-g3').value,
+    ch: +$('s-churn').value,
+    cv: +$('s-cv').value,
+    cp: +$('s-cp').value
+  };
+}
+
+function getNewMembros(m, s) {
+  if(m<=1) return 0;
+  if(m<=6) return s.g1;
+  if(m<=12) return s.g2;
+  return s.g3;
+}
+
+function compute(s) {
+  const curso = s.cv * s.cp;
+  const churn = s.ch / 100;
+  let membros = s.mi;
+  const acumSub = [], mrrs = [], labels = [];
+  let running = 0;
+  for(let m=1;m<=24;m++) {
+    const mrr = Math.round(membros * s.p);
+    running += mrr;
+    acumSub.push(running);
+    mrrs.push(mrr);
+    labels.push('M'+m);
+    membros = membros*(1-churn) + getNewMembros(m+1,s);
+  }
+  const mrr24 = Math.round(membros * s.p);
+  const membros24 = Math.round(membros);
+  let crossM = null;
+  for(let i=0;i<24;i++) { if(acumSub[i]>=curso&&!crossM) { crossM=i+1; break; } }
+  return { curso, acumSub, mrrs, labels, mrr24, membros24, crossM };
+}
+
+function updateSliderLabels(s) {
+  $('val-membros-init').textContent = fmtN(s.mi);
+  $('val-price').textContent = 'R$ '+s.p.toLocaleString('pt-BR');
+  $('val-g1').textContent = s.g1+'/mês';
+  $('val-g2').textContent = s.g2+'/mês';
+  $('val-g3').textContent = s.g3+'/mês';
+  $('val-churn').textContent = s.ch+'%';
+  $('val-cv').textContent = fmtN(s.cv)+' und.';
+  $('val-cp').textContent = 'R$ '+s.cp.toLocaleString('pt-BR');
+}
+
+function update() {
+  const s = getSliders();
+  updateSliderLabels(s);
+  const d = compute(s);
+
+  $('m-sub24').textContent = fmtK(d.acumSub[23]);
+  $('m-curso').textContent = fmtK(d.curso);
+  $('m-mrr24').textContent = fmtK(d.mrr24);
+  $('m-membros24').textContent = d.membros24.toLocaleString('pt-BR')+' membros ativos';
+
+  const vant = d.acumSub[23] - d.curso;
+  const mult = (d.acumSub[23]/d.curso).toFixed(1);
+  $('m-vantagem').textContent = fmtK(vant > 0 ? vant : 0);
+  $('m-mult').textContent = mult+'x maior que o curso';
+
+  $('cross-chip').textContent = d.crossM ? 'Cruzamento: M'+d.crossM : 'Não cruza';
+  $('ins-cross').textContent = d.crossM ? 'M'+d.crossM : '—';
+
+  const data = chartMode === 'acum'
+    ? { main: d.acumSub, ref: d.acumSub.map(()=>d.curso) }
+    : { main: d.mrrs, ref: d.mrrs.map(()=>d.curso/24) };
+
+  if(!chartInst) buildChart(d.labels, data);
+  else {
+    chartInst.data.labels = d.labels;
+    chartInst.data.datasets[0].data = data.main;
+    chartInst.data.datasets[1].data = data.ref;
+    chartInst.update('none');
+  }
+}
+
+function buildChart(labels, data) {
+  const ctx = $('chart-main');
+  if(chartInst) { chartInst.destroy(); chartInst=null; }
+  chartInst = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'Assinatura', data:data.main, borderColor:'#4a8fe8', backgroundColor:'rgba(74,143,232,0.07)', fill:true, tension:0.4, pointRadius:0, borderWidth:2.5 },
+        { label:'Curso (ref)', data:data.ref, borderColor:'#e8a23a', backgroundColor:'transparent', fill:false, tension:0, pointRadius:0, borderWidth:1.5, borderDash:[6,4] }
+      ]
+    },
+    options:{
+      animation:false,
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1e2229', titleColor:'#8a8f99', bodyColor:'#f0f0ef', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, callbacks:{ label:ctx=>fmtK(ctx.raw) } } },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#8a8f99', font:{size:11,family:'DM Mono'}, autoSkip:false, maxRotation:0, callback:(v,i)=>[0,5,11,17,23].includes(i)?labels[i]:''} },
+        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#8a8f99', font:{size:11,family:'DM Mono'}, callback:v=>fmtK(v)} }
+      }
+    }
+  });
+}
+
+function switchMode(mode, btn) {
+  chartMode = mode;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  chartInst && chartInst.destroy();
+  chartInst = null;
+  update();
+}
+
+function resetSliders() {
+  Object.entries(DEFAULTS).forEach(([k,v]) => {
+    const el = $('s-'+k);
+    if(el) el.value = v;
+  });
+  update();
+}
+
+document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('input', update));
+
+function tick() {
+  const now = new Date();
+  $('timestamp').textContent = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+tick();
+setInterval(tick, 1000);
+update();
+</script>
+</body>
+</html>
